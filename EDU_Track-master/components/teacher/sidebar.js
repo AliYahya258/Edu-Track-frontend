@@ -13,6 +13,7 @@ import {
   IconChevronDown,
   IconChevronUp,
   IconTrendingUp,
+  IconMessage,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -35,6 +36,13 @@ export default function TeacherSidebar() {
     router.push("/auth/login");
   };
 
+  // Close all dropdowns when sidebar is closed
+  React.useEffect(() => {
+    if (!open) {
+      setDropdownOpen({});
+    }
+  }, [open]);
+
   const actions = {
     attendance: [
       { label: "Mark Attendance", path: "/teacherPage/attendance/mark" },
@@ -44,6 +52,11 @@ export default function TeacherSidebar() {
       { label: "Create Assignment", path: "/teacherPage/assignments/create" },
       { label: "Get Assignment", path: "/teacherPage/assignments/getAssignment" },
       { label: "Grade Assignment", path: "/teacherPage/assignments/grade" },
+    ],
+    announcements: [
+      { label: "Create Announcement", path: "/teacherPage/announcements/create" },
+      { label: "View Announcements", path: "/teacherPage/announcements/view" },
+      { label: "Edit Announcements", path: "/teacherPage/announcements/edit" },
     ],
     marks: [
       { label: "Input & Update Grade", path: "/teacherPage/marks/input" },
@@ -56,6 +69,11 @@ export default function TeacherSidebar() {
       label: "Dashboard",
       href: "/teacherPage/dashboard",
       icon: (<IconBrandTabler className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />)
+    },
+    {
+      label: "Announcements",
+      icon: (<IconMessage className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />),
+      dropdownKey: 'announcements',
     },
     {
       label: "Attendance",
@@ -109,7 +127,10 @@ export default function TeacherSidebar() {
       >
         <Sidebar open={open} setOpen={setOpen}>
           <SidebarBody className="justify-between gap-10">
-            <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
+            <div className={cn(
+                "flex flex-col flex-1",
+                open ? "overflow-y-auto overflow-x-hidden" : "overflow-visible" // Only show scrollbar when open
+            )}>
               {open ? <Logo /> : <LogoIcon />}
               <div className="mt-8 flex flex-col gap-2">
                 {links.map((link, idx) =>
@@ -117,25 +138,38 @@ export default function TeacherSidebar() {
                         <Collapsible
                             key={idx}
                             open={dropdownOpen[link.dropdownKey]}
-                            onOpenChange={(isOpen) =>
+                            onOpenChange={(isOpen) => {
+                              // Only allow opening dropdowns when sidebar is expanded
+                              if (!open && isOpen) {
+                                setOpen(true);
+                                setTimeout(() => {
+                                  setDropdownOpen((prev) => ({
+                                    ...prev,
+                                    [link.dropdownKey]: true,
+                                  }));
+                                }, 100);
+                              } else {
                                 setDropdownOpen((prev) => ({
                                   ...prev,
                                   [link.dropdownKey]: isOpen,
-                                }))
-                            }
+                                }));
+                              }
+                            }}
                         >
                           <CollapsibleTrigger className="w-full flex items-center gap-2 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-blue-900 hover:text-white rounded-md transition-colors">
                             {link.icon}
-                            <span>{link.label}</span>
-                            {dropdownOpen[link.dropdownKey] ? (
-                                <IconChevronUp className="ml-auto" />
-                            ) : (
-                                <IconChevronDown className="ml-auto" />
+                            {open && <span>{link.label}</span>}
+                            {open && (
+                                dropdownOpen[link.dropdownKey] ? (
+                                    <IconChevronUp className="ml-auto" />
+                                ) : (
+                                    <IconChevronDown className="ml-auto" />
+                                )
                             )}
                           </CollapsibleTrigger>
                           <CollapsibleContent className="bg-black-900 rounded-md mt-1">
                             <AnimatePresence>
-                              {dropdownOpen[link.dropdownKey] && (
+                              {open && dropdownOpen[link.dropdownKey] && (
                                   <motion.div
                                       initial={{ opacity: 0, y: -10 }}
                                       animate={{ opacity: 1, y: 0 }}
