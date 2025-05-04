@@ -56,7 +56,6 @@ export default function TeacherSidebar() {
     announcements: [
       { label: "Create Announcement", path: "/teacherPage/announcements/create" },
       { label: "View Announcements", path: "/teacherPage/announcements/view" },
-      { label: "Edit Announcements", path: "/teacherPage/announcements/edit" },
     ],
     marks: [
       { label: "Input & Update Grade", path: "/teacherPage/marks/input" },
