@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import TeacherSidebar from '@/components/teacher/sidebar'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -10,11 +10,8 @@ import { Button } from '@/components/ui/button'
 import { AlertCircle, Send, Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
-
 export default function CreateAnnouncementPage() {
     const router = useRouter()
-    const [classes, setClasses] = useState([])
-    const [loading, setLoading] = useState(false)
     const [submitLoading, setSubmitLoading] = useState(false)
     const [errorMessage, setErrorMessage] = useState(null)
     const [successMessage, setSuccessMessage] = useState(null)
@@ -22,26 +19,9 @@ export default function CreateAnnouncementPage() {
     const [formData, setFormData] = useState({
         title: '',
         content: '',
-        classId: '',
-        importance: 'normal',
-        attachments: [],
+        courseId: '',
+        sectionName: '',
     })
-
-    useEffect(() => {
-        const fetchClasses = async () => {
-            setLoading(true)
-            try {
-                const classData = await fetchTeacherClasses()
-                setClasses(classData)
-            } catch (error) {
-                setErrorMessage('Error fetching your classes. Please try again.')
-            } finally {
-                setLoading(false)
-            }
-        }
-
-        fetchClasses()
-    }, [])
 
     const handleInputChange = (e) => {
         const { name, value } = e.target
@@ -58,11 +38,48 @@ export default function CreateAnnouncementPage() {
         })
     }
 
+    const postAnnouncement = async (announcementData) => {
+        const userData = sessionStorage.getItem('userData')
+        if (!userData) {
+            throw new Error("Not logged in")
+        }
+
+        const parsedData = JSON.parse(userData)
+        const token = parsedData.accessToken
+
+        if (!token) {
+            throw new Error("Invalid user session")
+        }
+
+        // Using the corrected API endpoint structure
+        const response = await fetch(`http://localhost:8081/api/announcements/courseId/sectionName`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            // The request body is simplified to match the API structure
+            body: JSON.stringify({
+                title: formData.title,
+                content: formData.content,
+                sectionName: formData.sectionName,
+                courseId: parseInt(formData.courseId) // Convert to number as API expects
+            })
+        })
+
+        if (!response.ok) {
+            const errorData = await response.json()
+            throw new Error(errorData.message || 'Failed to create announcement')
+        }
+
+        return await response.json()
+    }
+
     const handleSubmit = async (e) => {
         e.preventDefault()
 
         // Validation
-        if (!formData.title || !formData.content || !formData.classId) {
+        if (!formData.title || !formData.content || !formData.courseId || !formData.sectionName) {
             setErrorMessage('Please fill all required fields')
             return
         }
@@ -72,16 +89,23 @@ export default function CreateAnnouncementPage() {
         setSuccessMessage(null)
 
         try {
-            await postAnnouncement(formData)
+            // Simplified announcement data structure to match API expectations
+            const announcementData = {
+                title: formData.title,
+                content: formData.content,
+                sectionName: formData.sectionName,
+                courseId: parseInt(formData.courseId) // Convert to number as the API expects
+            }
+
+            await postAnnouncement(announcementData)
             setSuccessMessage('Announcement created successfully!')
 
             // Reset form after successful submission
             setFormData({
                 title: '',
                 content: '',
-                classId: '',
-                importance: 'normal',
-                attachments: [],
+                courseId: '',
+                sectionName: '',
             })
 
             // Redirect to view announcements after 2 seconds
@@ -90,7 +114,7 @@ export default function CreateAnnouncementPage() {
             }, 2000)
 
         } catch (error) {
-            setErrorMessage('Error creating announcement. Please try again.')
+            setErrorMessage(`Error creating announcement: ${error.message}`)
         } finally {
             setSubmitLoading(false)
         }
@@ -148,6 +172,42 @@ export default function CreateAnnouncementPage() {
                                             />
                                         </div>
 
+                                        {/* Course and Section IDs */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {/* Course ID */}
+                                            <div>
+                                                <label htmlFor="courseId" className="block text-sm font-medium text-gray-300 mb-1">
+                                                    Course ID *
+                                                </label>
+                                                <Input
+                                                    id="courseId"
+                                                    name="courseId"
+                                                    placeholder="Enter course ID (numeric)"
+                                                    value={formData.courseId}
+                                                    onChange={handleInputChange}
+                                                    type="number"
+                                                    className="w-full bg-gray-700/50 border-gray-600 text-gray-100 py-2 px-4 text-sm"
+                                                    required
+                                                />
+                                            </div>
+
+                                            {/* Section Name */}
+                                            <div>
+                                                <label htmlFor="sectionName" className="block text-sm font-medium text-gray-300 mb-1">
+                                                    Section Name *
+                                                </label>
+                                                <Input
+                                                    id="sectionName"
+                                                    name="sectionName"
+                                                    placeholder="Enter section name"
+                                                    value={formData.sectionName}
+                                                    onChange={handleInputChange}
+                                                    className="w-full bg-gray-700/50 border-gray-600 text-gray-100 py-2 px-4 text-sm"
+                                                    required
+                                                />
+                                            </div>
+                                        </div>
+
                                         {/* Content */}
                                         <div>
                                             <label htmlFor="content" className="block text-sm font-medium text-gray-300 mb-1">
@@ -164,51 +224,7 @@ export default function CreateAnnouncementPage() {
                                             />
                                         </div>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            {/* Class Selection */}
-                                            <div>
-                                                <label htmlFor="classId" className="block text-sm font-medium text-gray-300 mb-1">
-                                                    Class *
-                                                </label>
-                                                <Select value={formData.classId} onValueChange={(value) => handleSelectChange('classId', value)}>
-                                                    <SelectTrigger className="w-full bg-gray-700/50 border-gray-600 text-gray-100 py-2 px-4 text-sm">
-                                                        <SelectValue placeholder="Select a class" />
-                                                    </SelectTrigger>
-                                                    <SelectContent className="bg-gray-800 border-gray-700">
-                                                        {loading ? (
-                                                            <div className="flex items-center justify-center p-2">
-                                                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                                                Loading...
-                                                            </div>
-                                                        ) : (
-                                                            classes.map((classItem) => (
-                                                                <SelectItem key={classItem.id} value={classItem.id}>
-                                                                    {classItem.name}
-                                                                </SelectItem>
-                                                            ))
-                                                        )}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-
-                                            {/* Importance */}
-                                            <div>
-                                                <label htmlFor="importance" className="block text-sm font-medium text-gray-300 mb-1">
-                                                    Importance
-                                                </label>
-                                                <Select value={formData.importance} onValueChange={(value) => handleSelectChange('importance', value)}>
-                                                    <SelectTrigger className="w-full bg-gray-700/50 border-gray-600 text-gray-100 py-2 px-4 text-sm">
-                                                        <SelectValue placeholder="Select importance" />
-                                                    </SelectTrigger>
-                                                    <SelectContent className="bg-gray-800 border-gray-700">
-                                                        <SelectItem value="low">Low</SelectItem>
-                                                        <SelectItem value="normal">Normal</SelectItem>
-                                                        <SelectItem value="high">High</SelectItem>
-                                                        <SelectItem value="urgent">Urgent</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                        </div>
+                                        {/* Importance field removed since it's not required by the API */}
 
                                         {/* Submit Button */}
                                         <div className="pt-4">
